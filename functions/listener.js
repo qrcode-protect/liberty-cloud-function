@@ -75,71 +75,113 @@ exports.onCommandeReceivedBeaute = functions.firestore.document('commandes_beaut
 
 })
 
-exports.onCommandeReceivedLivraison = functions.firestore.document('commandes_restauration/{commandeId}').onUpdate( 
-    async (change, context) => {
-    
+exports.onCommandeUpdated = functions.firestore.document('commandes_restauration/{commandeId}').onUpdate( async (change, context) => {
     const commandeData = change.after.data();
     const commandeDataBefore = change.before.data();
-    if (commandeDataBefore.restaurantStatus.encours == false) {
-        if (commandeData.livreur != null && commandeData.restaurantStatus.encours) {  
-        const payload = {
-            token: commandeData.livreur.token,
-            notification: {
-            title: 'Nouvelle commande !',
-            body: 'Vous avez recu une nouvelle commande.',
-            },
-        }
-    
-        admin.messaging().send(payload).then(async (response)  =>  {
-            await firestore.collection(`prestataires_livraison/${commandeData.prestataire.id}/messages`).add(payload).then((result) => {
-                return {success: true};
-            }).catch((error) => {
-                return {error: error};
-            });
-        }).catch((error) => {
-            return {error: error};
-        })
-        }
-    }
-})
+    const firestore = admin.firestore();
+    let payloadList = [];
+    let targetList = [];
 
-exports.onCommandeCanceledRestauration = functions.firestore.document('commandes_restauration/{commandeId}').onUpdate( 
-    async (change, context) => {
-    
-    const commandeData = change.after.data();
-    const commandeDataBefore = change.before.data();
-    if (commandeDataBefore.restaurantStatus.annule == false) {
-        if (commandeData.restaurantStatus.annule == true) {  
-        const payload = {
+    // generate payload for notif
+    if ((commandeDataBefore.restaurantStatus.annule == false) && // resto annule la commande
+        (commandeData.restaurantStatus.annule == true)) {
+        console.log('commande annulée par le resto : (annulé false -> true)'); 
+        payloadList.push({
             token: commandeData.client.token,
             notification: {
-            title: 'Commande annulée',
-            body: `La commande #${commandeData.id}, à été annulée par le restaurateur.`,
+                title: 'Commande annulée',
+                body: `La commande #${commandeData.id.substring(0,5)}, à été annulée par le restaurateur.`,
             },
+        });
+        targetList.push('utilisateurs');
+    } else if ((commandeDataBefore.restaurantStatus.encours === false) && // resto accepte la commande
+     (commandeData.restaurantStatus.encours === true)) {
+        console.log('resto accepte commande (en cours : false -> true) ');
+        payloadList.push({
+            token: commandeData.client.token,
+            notification: {
+                title: 'Commande acceptée !',
+                body: `La commande #${commandeData.id.substring(0,5)}, à été acceptée par le restaurateur.`,
+            },
+        });
+        targetList.push('utilisateurs');
+        if ((commandeData.livreur != null)) { // livreur recoit une nouvelle commande
+            console.log('nouvelle commande livreur');
+            payloadList.push({
+                token: commandeData.livreur.token,
+                notification: {
+                    title: 'Nouvelle commande !',
+                    body: `Vous avez recu une nouvelle commande !.`,
+                },
+            });
+            targetList.push('prestataires_livraison');
         }
-    
-        return admin.messaging().send(payload).then(async (response)  =>  {
-            console.log(`Notif sent to ${commandeData.client.token} (client: ${commandeData.client.id})`);
+    } else if ((commandeDataBefore.restaurantStatus.termine === false) && //resto termine commande
+    (commandeData.restaurantStatus.termine === true)) {
+        if ((commandeData.livreur === null) || (commandeData.livreur === undefined)) { //sans livraison
+            console.log('resto fini commande : pas de livraison client doit aller chercher (termine : false -> true && livreur null)');
+            payloadList.push({
+                token: commandeData.client.token,
+                notification: {
+                    title: 'Commande prête !',
+                    body: `Votre commande est prête ! Venez vite la récuperer au comptoir.`,
+                },
+            });
+            targetList.push('utilisateurs');
+        } else { // avec livraison
+            console.log('resto fini commande : notif à envoyer au livreur (termine : false -> true && livreur ok)');
+            payloadList.push({
+                token: commandeData.livreur.token,
+                notification: {
+                    title: 'Commande prête',
+                    body: `La commande #${commandeData.id.substring(0,5)}, est prête pour être prise en charge.`,
+                },
+            });
+            targetList.push('prestataires_livraison')
+        }
+    } else if ((commandeDataBefore.colisRecup === false) && (commandeData.colisRecup === true)) { //livreur à recup le colis
+        console.log('livreur à recup la commande : (colis recup : false -> true)');
+        payloadList.push({
+            token: commandeData.client.token,
+            notification: {
+                title: 'Commande prise en charge',
+                body: `Votre commande à été prise en charge par le livreur.`,
+            },
+        });
+        targetList.push('utilisateurs')
+        
+    } else if ((commandeDataBefore.estArrive === false) && (commandeData.estArrive === true) && (commandeData.livreur != null)) { // livreur arrivé à coté du client
+        console.log('livreur arrivé au domicile : (estArrive : false -> true)');
+        payloadList.push({
+            token: commandeData.client.token,
+            notification: {
+                title: 'Commande arrivée !',
+                body: `Votre livreur est devant la porte !.`,
+            },
+        });
+        targetList.push('utilisateurs');
+    }
+
+    // send notif && save document on user doc
+    for (let i = 0; i < payloadList.length; i++) {
+        const payload = payloadList[i];
+        const target = targetList[i];
+        await admin.messaging().send(payload).then(async (resp) => { 
             payload.notification.lu = false;
             payload.notification.date = new Date().toISOString();
             payload.notification.client = commandeData.client;
-            firestore.collection(`utilisateurs/${commandeData.client.id}/notifications_messages`).add(payload.notification).then( async (result) => {
-            console.log(`Document created at ${result.path} at ${new Date().toLocaleTimeString()}`);
-            firestore.doc(result.path).update({id: result.id}).then(async (result) => {
-                    console.log(`Document updated at ${new Date().toLocaleTimeString()}`);
-                    return {success: true};
-                }).catch((error) => {
-                    console.log(error);
-                    throw {error: error};
-                })
-            }).catch((error) => {
-                console.log(error);
-                throw {error: error};
+            await firestore.collection(`${target}/${commandeData.client.id}/notifications_messages`).add(payload.notification).then(async (result) => {
+                console.log(`Document created at ${result.path} at ${new Date().toLocaleTimeString()}`);
+                await firestore.doc(result.path).update({id: result.id}).then(async (result) => {
+                    console.log(`Document updated at ${new Date().toLocaleTimeString()}`);                    
+                }).catch((err) => {
+                    throw err;
+                });
+            }).catch((err) => {
+                throw err;
             });
-        }).catch((error) => {
-            console.log(error);
-            throw {error: error};
-        })
-        }
+        }).catch((err) => {
+            throw err;
+        });
     }
 })

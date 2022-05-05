@@ -14,8 +14,7 @@ exports.createUser = adminFunctions.createUser;
 
 exports.openRestaurants = cron.openRestaurants;
 
-exports.onUserBeauteStatusChanged = listener.onUserBeauteStatusChanged;
-exports.onUserLivraisonStatusChanged = listener.onUserLivraisonStatusChanged;
-exports.onCommandeReceivedBeaute = listener.onCommandeReceivedBeaute;
-exports.onCommandeReceivedLivraison = listener.onCommandeReceivedLivraison;
-exports.onCommandeCanceledRestauration = listener.onCommandeCanceledRestauration;
+exports.onUserBeauteStatusChanged = listener.onUserBeauteStatusChanged; // gestion presence
+exports.onUserLivraisonStatusChanged = listener.onUserLivraisonStatusChanged; // gestion presence
+exports.onCommandeReceivedBeaute = listener.onCommandeReceivedBeaute; 
+exports.onCommandeUpdated = listener.onCommandeUpdated; // gestion notif lors de l'update d'une commande
