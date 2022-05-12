@@ -1,6 +1,11 @@
 const functions = require("firebase-functions");
 const admin = require('firebase-admin');
 
+if (admin.apps.length === 0) {
+    admin.initializeApp();
+}
+const firestore = admin.firestore();
+
 
 exports.onUserBeauteStatusChanged = functions.database.ref('/status/beaute/{uid}').onUpdate(
     async (change, context) => {
@@ -78,7 +83,6 @@ exports.onCommandeReceivedBeaute = functions.firestore.document('commandes_beaut
 exports.onCommandeUpdated = functions.firestore.document('commandes_restauration/{commandeId}').onUpdate( async (change, context) => {
     const commandeData = change.after.data();
     const commandeDataBefore = change.before.data();
-    const firestore = admin.firestore();
     let payloadList = [];
     let targetList = [];
 
@@ -150,7 +154,10 @@ exports.onCommandeUpdated = functions.firestore.document('commandes_restauration
         });
         targetList.push('utilisateurs')
         
-    } else if ((commandeDataBefore.estArrive === false) && (commandeData.estArrive === true) && (commandeData.livreur != null)) { // livreur arrivé à coté du client
+    } else if (((commandeDataBefore.estArrive === false) 
+        || (commandeDataBefore.estArrive === null)
+        || (commandeDataBefore.estArrive === undefined)) 
+        && (commandeData.estArrive === true) && (commandeData.livreur != null)) { // livreur arrivé à coté du client
         console.log('livreur arrivé au domicile : (estArrive : false -> true)');
         payloadList.push({
             token: commandeData.client.token,

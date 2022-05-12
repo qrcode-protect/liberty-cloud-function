@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "li-berty-customers"
-  }
+    "default": "li-berty-customers",
+    "prod": "li-berty-5b442"
+  },
+  "targets": {}
 }

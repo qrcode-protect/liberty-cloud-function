@@ -2,6 +2,10 @@ const functions = require("firebase-functions");
 const admin = require('firebase-admin');
 let moment = require('moment-timezone');
 
+if (admin.apps.length === 0) {
+    admin.initializeApp();
+}
+const firestore = admin.firestore();
 
 exports.openRestaurants = functions.pubsub.schedule('00,30 * * * *').onRun( async (context) => {
     let momentDate = moment.tz(new Date(), 'Europe/Paris');
@@ -33,10 +37,9 @@ exports.openRestaurants = functions.pubsub.schedule('00,30 * * * *').onRun( asyn
             break;
     }
     try {
-        const db = admin.firestore();
         console.log('write batch create');
-        let writeBatch = db.batch();
-        await db.collection('list_restaurant').get().then(async (queryRestaurant) => {
+        let writeBatch = firestore.batch();
+        await firestore.collection('list_restaurant').get().then(async (queryRestaurant) => {
             for (let i = 0; i < queryRestaurant.docs.length; i++) {
                 
                 let restaurant = queryRestaurant.docs[i].data(); 

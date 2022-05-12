@@ -2,10 +2,11 @@ const cron = require('./cron');
 const listener = require('./listener');
 const adminFunctions = require('./admin');
 const mail = require('./mail');
-
 const admin = require('firebase-admin');
-admin.initializeApp();
 
+if (admin.apps.length === 0) {
+    admin.initializeApp();
+}
 
 exports.sendMailGmail = mail.sendMailGmail;
 exports.sendMailUserCreated = mail.sendMailUserCreated;
