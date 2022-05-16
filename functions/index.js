@@ -2,6 +2,7 @@ const cron = require('./cron');
 const listener = require('./listener');
 const adminFunctions = require('./admin');
 const mail = require('./mail');
+const commande = require('./commandes');
 const admin = require('firebase-admin');
 
 if (admin.apps.length === 0) {
@@ -15,7 +16,9 @@ exports.createUser = adminFunctions.createUser;
 
 exports.openRestaurants = cron.openRestaurants;
 
-exports.onUserBeauteStatusChanged = listener.onUserBeauteStatusChanged; // gestion presence
-exports.onUserLivraisonStatusChanged = listener.onUserLivraisonStatusChanged; // gestion presence
+// exports.onUserBeauteStatusChanged = listener.onUserBeauteStatusChanged; // gestion presence
+// exports.onUserLivraisonStatusChanged = listener.onUserLivraisonStatusChanged; // gestion presence
 exports.onCommandeReceivedBeaute = listener.onCommandeReceivedBeaute; 
 exports.onCommandeUpdated = listener.onCommandeUpdated; // gestion notif lors de l'update d'une commande
+
+exports.assignCommand = commande.assignCommand;
