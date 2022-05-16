@@ -7,51 +7,51 @@ if (admin.apps.length === 0) {
 const firestore = admin.firestore();
 
 
-exports.onUserBeauteStatusChanged = functions.database.ref('/status/beaute/{uid}').onUpdate(
-    async (change, context) => {
-        const eventStatus = change.after.val();
+// exports.onUserBeauteStatusChanged = functions.database.ref('/status/beaute/{uid}').onUpdate(
+//     async (change, context) => {
+//         const eventStatus = change.after.val();
 
-        const userStatusFirestoreRef = firestore.doc(`prestataires_beaute/${context.params.uid}`);
+//         const userStatusFirestoreRef = firestore.doc(`prestataires_beaute/${context.params.uid}`);
 
-        const statusSnapshot = await change.after.ref.once('value');
-        const status = statusSnapshot.val();
-        functions.logger.log(status, eventStatus);
+//         const statusSnapshot = await change.after.ref.once('value');
+//         const status = statusSnapshot.val();
+//         functions.logger.log(status, eventStatus);
 
-        if (status.last_changed > eventStatus.last_changed) {
-            return null;
-        }
+//         if (status.last_changed > eventStatus.last_changed) {
+//             return null;
+//         }
 
-        eventStatus.last_changed = new Date(eventStatus.last_changed);
+//         eventStatus.last_changed = new Date(eventStatus.last_changed);
 
-        if (eventStatus.state == false) {
-            userStatusFirestoreRef.update({'actif': eventStatus.state})
-        }
+//         if (eventStatus.state == false) {
+//             userStatusFirestoreRef.update({'actif': eventStatus.state})
+//         }
 
-        return userStatusFirestoreRef.update({'connected': eventStatus.state});
-    });
+//         return userStatusFirestoreRef.update({'connected': eventStatus.state});
+//     });
 
-exports.onUserLivraisonStatusChanged = functions.database.ref('/status/livraison/{uid}').onUpdate(
-    async (change, context) => {
-        const eventStatus = change.after.val();
+// exports.onUserLivraisonStatusChanged = functions.database.ref('/status/livraison/{uid}').onUpdate(
+//     async (change, context) => {
+//         const eventStatus = change.after.val();
 
-        const userStatusFirestoreRef = firestore.doc(`prestataires_livraison/${context.params.uid}`);
+//         const userStatusFirestoreRef = firestore.doc(`prestataires_livraison/${context.params.uid}`);
 
-        const statusSnapshot = await change.after.ref.once('value');
-        const status = statusSnapshot.val();
-        functions.logger.log(status, eventStatus);
+//         const statusSnapshot = await change.after.ref.once('value');
+//         const status = statusSnapshot.val();
+//         functions.logger.log(status, eventStatus);
 
-        if (status.last_changed > eventStatus.last_changed) {
-            return null;
-        }
+//         if (status.last_changed > eventStatus.last_changed) {
+//             return null;
+//         }
 
-        eventStatus.last_changed = new Date(eventStatus.last_changed);
+//         eventStatus.last_changed = new Date(eventStatus.last_changed);
 
-        if (eventStatus.state == false) {
-            userStatusFirestoreRef.update({'actif': eventStatus.state})
-        }
+//         if (eventStatus.state == false) {
+//             userStatusFirestoreRef.update({'actif': eventStatus.state})
+//         }
 
-        return userStatusFirestoreRef.update({'connected': eventStatus.state});
-});
+//         return userStatusFirestoreRef.update({'connected': eventStatus.state});
+// });
     
 exports.onCommandeReceivedBeaute = functions.firestore.document('commandes_beaute/{commandeId}').onCreate( 
     async (snap, context) => {
