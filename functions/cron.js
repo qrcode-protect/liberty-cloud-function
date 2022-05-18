@@ -48,10 +48,65 @@ exports.openRestaurants = functions.pubsub.schedule('00,30 * * * *').onRun( asyn
                 console.log(`NOM DU RESTO: ${restaurant.nom} : Actuellement ${restaurant.ouvert ? 'ouvert' : 'fermé'}`)
 
                 // horaires dans collection horaire
-                if ((restaurant.horairesRestaurant == undefined) || (restaurant.horairesRestaurant == null)) {
-                    await restaurantRef.collection('horaires').doc(dayName).get().then((horaireQuery) => {
-                        let horaireDay = horaireQuery.data();
-                        if (horaireDay != null) {
+                if (restaurant.enLigne) {
+                    if ((restaurant.horairesRestaurant == undefined) || (restaurant.horairesRestaurant == null)) {
+                        await restaurantRef.collection('horaires').doc(dayName).get().then((horaireQuery) => {
+                            let horaireDay = horaireQuery.data();
+                            if (horaireDay != null) {
+                                let morningStart = horaireDay.morning.open.split(':');
+                                let morningEnd = horaireDay.morning.close.split(':');
+                                let afternoonStart = horaireDay.afternoon.open.split(':');
+                                let afternoonEnd = horaireDay.afternoon.close.split(':');
+                            
+                                let morningMomentStart = moment.tz(new Date(), 'Europe/Paris').hour(morningStart[0]).minute(morningStart[1]).second(0);
+                                let morningMomentEnd = moment.tz(new Date(), 'Europe/Paris').hour(morningEnd[0]).minute(morningEnd[1]).second(0);
+                                let afternoonMomentStart = moment.tz(new Date(), 'Europe/Paris').hour( afternoonStart[0]).minute(afternoonStart[1]).second(0);
+                                let afternoonMomentEnd = moment.tz(new Date(), 'Europe/Paris').hour(afternoonEnd[0]).minute(afternoonEnd[1]).second(0);
+    
+                                if (morningEnd[0] == '00') {
+                                    morningMomentEnd.add(1, 'd');
+                                }
+                                if (afternoonEnd[0] == '00') {
+                                    afternoonMomentEnd.add(1, 'd');
+                                }
+                                
+                                let morningStartCondition = (momentDate.isAfter(morningMomentStart));
+                                let morningEndCondition = (momentDate.isAfter(morningMomentEnd));
+                                let morningOpenCondition = (morningStartCondition && !morningEndCondition);
+                                console.log(`morningStartCondition :  ${morningStartCondition} : ${morningMomentStart}`);
+                                console.log(`morningEndCondition :  ${morningEndCondition} : ${morningMomentEnd}`);
+                                console.log(`=> morningOpenCondition ${morningOpenCondition}`)
+                            
+                                let afternoonStartCondition = (momentDate.isAfter(afternoonMomentStart));
+                                let afternoonEndCondition = (momentDate.isAfter(afternoonMomentEnd));
+                                let afternoonOpenCondition = (afternoonStartCondition && !afternoonEndCondition);
+                                console.log(`afternoonStartCondition :  ${afternoonStartCondition} : ${afternoonMomentStart}`);
+                                console.log(`afternoonEndCondition :  ${afternoonEndCondition} : ${afternoonMomentEnd}`);
+                                console.log(`=> afternoonOpenCondition ${afternoonOpenCondition}`)
+    
+                                if (morningOpenCondition || afternoonOpenCondition) {
+                                    if (!restaurant.ouvert) {
+                                        console.log(`update: ${restaurant.nom} fermé ->  ouvert`);
+                                        console.log(`date: ${momentDate}`);
+                                        writeBatch.update(restaurantRef, {'ouvert': true});
+                                        console.log('write batch update new');
+                                    }
+                                } else {
+                                    if (restaurant.ouvert) {
+                                        console.log(`update: ${restaurant.nom} ouvert ->  fermé`);
+                                        console.log(`date: ${momentDate}`);
+                                        writeBatch.update(restaurantRef, {'ouvert': false});
+                                        console.log('write batch update new');
+                                    }
+                                }
+                            }
+                        });
+                    
+                    // horaire dans objet restaurant
+                    } else if ((restaurant.horairesRestaurant != undefined) || (restaurant.horairesRestaurant != null)) {
+                        if ((restaurant.horairesRestaurant[dayName] != undefined) || (restaurant.horairesRestaurant[dayName] != null)) {
+                            let horaireDay = restaurant.horairesRestaurant[dayName];
+                            console.log(horaireDay);
                             let morningStart = horaireDay.morning.open.split(':');
                             let morningEnd = horaireDay.morning.close.split(':');
                             let afternoonStart = horaireDay.afternoon.open.split(':');
@@ -61,95 +116,42 @@ exports.openRestaurants = functions.pubsub.schedule('00,30 * * * *').onRun( asyn
                             let morningMomentEnd = moment.tz(new Date(), 'Europe/Paris').hour(morningEnd[0]).minute(morningEnd[1]).second(0);
                             let afternoonMomentStart = moment.tz(new Date(), 'Europe/Paris').hour( afternoonStart[0]).minute(afternoonStart[1]).second(0);
                             let afternoonMomentEnd = moment.tz(new Date(), 'Europe/Paris').hour(afternoonEnd[0]).minute(afternoonEnd[1]).second(0);
-
+    
                             if (morningEnd[0] == '00') {
                                 morningMomentEnd.add(1, 'd');
                             }
                             if (afternoonEnd[0] == '00') {
                                 afternoonMomentEnd.add(1, 'd');
                             }
-                            
+    
                             let morningStartCondition = (momentDate.isAfter(morningMomentStart));
                             let morningEndCondition = (momentDate.isAfter(morningMomentEnd));
                             let morningOpenCondition = (morningStartCondition && !morningEndCondition);
                             console.log(`morningStartCondition :  ${morningStartCondition} : ${morningMomentStart}`);
                             console.log(`morningEndCondition :  ${morningEndCondition} : ${morningMomentEnd}`);
                             console.log(`=> morningOpenCondition ${morningOpenCondition}`)
-                        
                             let afternoonStartCondition = (momentDate.isAfter(afternoonMomentStart));
                             let afternoonEndCondition = (momentDate.isAfter(afternoonMomentEnd));
                             let afternoonOpenCondition = (afternoonStartCondition && !afternoonEndCondition);
                             console.log(`afternoonStartCondition :  ${afternoonStartCondition} : ${afternoonMomentStart}`);
                             console.log(`afternoonEndCondition :  ${afternoonEndCondition} : ${afternoonMomentEnd}`);
                             console.log(`=> afternoonOpenCondition ${afternoonOpenCondition}`)
-
+    
+    
                             if (morningOpenCondition || afternoonOpenCondition) {
                                 if (!restaurant.ouvert) {
                                     console.log(`update: ${restaurant.nom} fermé ->  ouvert`);
                                     console.log(`date: ${momentDate}`);
                                     writeBatch.update(restaurantRef, {'ouvert': true});
-                                    console.log('write batch update new');
+                                    console.log('write batch update old');
                                 }
                             } else {
                                 if (restaurant.ouvert) {
                                     console.log(`update: ${restaurant.nom} ouvert ->  fermé`);
                                     console.log(`date: ${momentDate}`);
                                     writeBatch.update(restaurantRef, {'ouvert': false});
-                                    console.log('write batch update new');
+                                    console.log('write batch update old');
                                 }
-                            }
-                        }
-                    });
-                
-                // horaire dans objet restaurant
-                } else if ((restaurant.horairesRestaurant != undefined) || (restaurant.horairesRestaurant != null)) {
-                    if ((restaurant.horairesRestaurant[dayName] != undefined) || (restaurant.horairesRestaurant[dayName] != null)) {
-                        let horaireDay = restaurant.horairesRestaurant[dayName];
-                        console.log(horaireDay);
-                        let morningStart = horaireDay.morning.open.split(':');
-                        let morningEnd = horaireDay.morning.close.split(':');
-                        let afternoonStart = horaireDay.afternoon.open.split(':');
-                        let afternoonEnd = horaireDay.afternoon.close.split(':');
-                    
-                        let morningMomentStart = moment.tz(new Date(), 'Europe/Paris').hour(morningStart[0]).minute(morningStart[1]).second(0);
-                        let morningMomentEnd = moment.tz(new Date(), 'Europe/Paris').hour(morningEnd[0]).minute(morningEnd[1]).second(0);
-                        let afternoonMomentStart = moment.tz(new Date(), 'Europe/Paris').hour( afternoonStart[0]).minute(afternoonStart[1]).second(0);
-                        let afternoonMomentEnd = moment.tz(new Date(), 'Europe/Paris').hour(afternoonEnd[0]).minute(afternoonEnd[1]).second(0);
-
-                        if (morningEnd[0] == '00') {
-                            morningMomentEnd.add(1, 'd');
-                        }
-                        if (afternoonEnd[0] == '00') {
-                            afternoonMomentEnd.add(1, 'd');
-                        }
-
-                        let morningStartCondition = (momentDate.isAfter(morningMomentStart));
-                        let morningEndCondition = (momentDate.isAfter(morningMomentEnd));
-                        let morningOpenCondition = (morningStartCondition && !morningEndCondition);
-                        console.log(`morningStartCondition :  ${morningStartCondition} : ${morningMomentStart}`);
-                        console.log(`morningEndCondition :  ${morningEndCondition} : ${morningMomentEnd}`);
-                        console.log(`=> morningOpenCondition ${morningOpenCondition}`)
-                        let afternoonStartCondition = (momentDate.isAfter(afternoonMomentStart));
-                        let afternoonEndCondition = (momentDate.isAfter(afternoonMomentEnd));
-                        let afternoonOpenCondition = (afternoonStartCondition && !afternoonEndCondition);
-                        console.log(`afternoonStartCondition :  ${afternoonStartCondition} : ${afternoonMomentStart}`);
-                        console.log(`afternoonEndCondition :  ${afternoonEndCondition} : ${afternoonMomentEnd}`);
-                        console.log(`=> afternoonOpenCondition ${afternoonOpenCondition}`)
-
-
-                        if (morningOpenCondition || afternoonOpenCondition) {
-                            if (!restaurant.ouvert) {
-                                console.log(`update: ${restaurant.nom} fermé ->  ouvert`);
-                                console.log(`date: ${momentDate}`);
-                                writeBatch.update(restaurantRef, {'ouvert': true});
-                                console.log('write batch update old');
-                            }
-                        } else {
-                            if (restaurant.ouvert) {
-                                console.log(`update: ${restaurant.nom} ouvert ->  fermé`);
-                                console.log(`date: ${momentDate}`);
-                                writeBatch.update(restaurantRef, {'ouvert': false});
-                                console.log('write batch update old');
                             }
                         }
                     }
