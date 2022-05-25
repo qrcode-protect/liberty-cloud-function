@@ -97,6 +97,16 @@ exports.onCommandeUpdated = functions.firestore.document('commandes_restauration
                 body: `La commande #${commandeData.id.substring(0,5)}, à été annulée par le restaurateur.`,
             },
         });
+        if (commandeData.livraisonStatus) { // update de la commande pour annuler la commande de livraison si le resto annule
+            await firestore.collection('commandes_restauration').doc(commandeData.id).update({
+                'livraisonStatus': {
+                    'annule': true,
+                    'demande': false,
+                    'encours': false,
+                    'termine': false,
+                },
+            })
+        }
         targetList.push('utilisateurs');
     } else if ((commandeDataBefore.restaurantStatus.encours === false) && // resto accepte la commande
      (commandeData.restaurantStatus.encours === true)) {
