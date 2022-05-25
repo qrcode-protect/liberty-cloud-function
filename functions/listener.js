@@ -98,7 +98,7 @@ exports.onCommandeUpdated = functions.firestore.document('commandes_restauration
             },
         });
         if (commandeData.livraisonStatus) { // update de la commande pour annuler la commande de livraison si le resto annule
-            firestore.collection('commandes_restauration').doc(commandeData.id).update({
+            await firestore.collection('commandes_restauration').doc(commandeData.id).update({
                 'livraisonStatus': {
                     'annule': true,
                     'demande': false,
